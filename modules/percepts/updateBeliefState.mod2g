@@ -1,0 +1,138 @@
+use "../../knowledge_generated" as knowledge.
+
+module updateBeliefState {
+
+	%%%%%%%%% Update the belief state according to the result of last action %%%%%%%%%
+	if bel(actionPlan(Plan)),
+	   not(bel(lastActionResult(success)))
+	then delete(actionPlan(Plan)).
+	
+	
+	if bel(lastActionResult(success), lastActionParams(P)) then {
+	
+		if bel(actionPlan([Succeeded|Rest]))
+		then {
+			if true then delete(actionPlan([Succeeded|Rest])).
+			if not(bel(Rest = [])) then insert(actionPlan(Rest)).
+		}
+		
+		% move
+		if bel(lastAction(move), P = [Dir]),
+		   bel(step(Step)) then {
+		   
+			% Update my poisition
+			if bel(myPosition(X, Y)), 
+			   bel(translate(Dir, X, Y, X2, Y2)),
+			   bel(translateCoordinatesToMyOrigin(X2, Y2, XFromMyOrigin, YFromMyOrigin)) then
+			delete(myPosition(X, Y)) + 
+			insert(myPosition(XFromMyOrigin, YFromMyOrigin)) +
+			insert(visited(XFromMyOrigin, YFromMyOrigin, Step)).
+		}		
+		
+		% accepting or submitting a task
+		if bel(lastAction(submit), P = [Task]) then	insert(submitted(Task)) + print("Submitted task!").
+		
+		
+		% Connecting a block
+		if bel(lastAction(connect), P = [Agent, X, Y]),
+		   bel(atom_number(X, X2)),
+		   bel(atom_number(Y, Y2))
+		then {
+		 	if true then insert(connectionFromTo(X2, Y2, Agent)).
+
+		 	if bel(connectionToInfo(ToX, ToY)) 
+		 	then insert(connectionFromTo(X2, Y2, ToX, ToY, Agent)) +
+		 	     delete(connectionToInfo(ToX, ToY)).
+		}
+		
+		
+		% disconnecting a block
+		if bel(lastAction(disconnect), P = [X1, Y1, X2, Y2]),
+		   bel(atom_number(X1, X1_num)),
+		   bel(atom_number(Y1, Y1_num)),
+		   bel(atom_number(X2, X2_num)),
+		   bel(atom_number(Y2, Y2_num)),
+		   bel(connectionFromTo(X1_num, Y1_num, X2_num, Y2_num, Agent))
+  		then delete(connectionFromTo(X1_num, Y1_num, X2_num, Y2_num, Agent)).
+		
+		% Attaching a block
+		if bel(lastAction(attach), P = [Dir]),
+		   bel(translate(Dir, 0, 0, Xr, Yr))
+		then insert(attachedToMe(Xr, Yr)).
+		
+		% Detaching a block
+		if bel(lastAction(detach), P = [Dir]) then {
+			 
+			if bel(translate(Dir, 0, 0, Xr, Yr)),
+			   bel(attachedToMe(Xr, Yr))
+			then delete(attachedToMe(Xr, Yr)) + print("Detached").
+		}
+		
+		% Rotating
+		if bel(lastAction(rotate), P = [R]) then {
+			forall bel(attachedToMe(Xa, Ya)),
+				   bel(rotation90(R, Xa, Ya, Xa_rot, Ya_rot))
+			do {
+			    	if true then delete(attachedToMe(Xa, Ya)).
+			    	if true then insert(attachedToMe(Xa_rot, Ya_rot)).
+			}
+		}
+	}	
+	
+	
+	% This is only to be safe if we start with something attached
+	forall bel(attached(Xr, Yr)), 
+	       not(bel(attachedToMe(Xr, Yr))),
+	       bel(translate(_, 0, 0, Xr, Yr)),
+	       not(bel(
+       			thing(Xt, Yt, Type, _),
+	       		(Type = block ; Type = entity),
+	       		translate(_, Xr, Yr, Xt, Yt)
+       	   ))
+		do insert(attachedToMe(Xr, Yr)) + print("Attached from percept", Xr, Yr).
+				
+	% Remove attached		
+	forall bel(attachedToMe(Xr, Yr)), not(bel(attached(Xr, Yr))) 
+		do delete(attachedToMe(Xr, Yr)) + print("Removed attachment").
+	
+	
+	%%%%%%%%% Update beliefs about connected blocks %%%%%%%%%%%%%%%%%%%%
+	forall bel(connectionToInfo(ToX, ToY))
+		do delete(connectionToInfo(ToX, ToY)).
+	
+	forall bel(connectionFromTo(X, Y, Agent), not(thing(X, Y, block, _)))
+		do delete(connectionFromTo(X, Y, Agent)).
+	
+	forall bel(connectionFromTo(X, Y, ToX, ToY, Agent), not(thing(X, Y, block, _)))
+		do delete(connectionFromTo(X, Y, ToX, ToY, Agent)).
+	
+	
+	%%%%%%%%% Dispensers are permanent %%%%%%%%%
+	forall bel(thing(Xr, Yr, Type, Details), (Type = dispenser)), 
+	       bel(relativeToAbsolutePositionOfCoordinates(Xr, Yr, X, Y)) do {
+	       
+	 	if 	 not(bel(dispenser(X, Y, Details))) 
+	 	then insert(dispenser(X, Y, Details)) + insert(share(dispenser(X, Y, Details))).
+	 }
+	
+	
+	%%%%%%%%% Zones %%%%%%%%%
+	forall bel(goalZone(Xr, Yr), relativeToAbsolutePositionOfCoordinates(Xr, Yr, X, Y), not(goalCell(X, Y))) 
+		   do insert(goalCell(X, Y)) + insert(share(goalCell(X, Y))).
+		   
+	forall bel(roleZone(Xr, Yr), relativeToAbsolutePositionOfCoordinates(Xr, Yr, X, Y), not(roleCell(X, Y))) 
+		   do insert(roleCell(X, Y)) + insert(share(roleCell(X, Y))).
+	
+	
+	%%%%%%%%% DEACTIVATED - If the agent was deactivated, clear all attachements %%%%%%%%%
+	if bel(deactivated(true)) then {
+		forall bel(attachedToMe(X, Y))
+			do delete(attachedToMe(X, Y)) + print("Detached").
+			
+		forall bel(connectionFromTo(BlockX, BlockY, Agent))
+		    do delete(connectionFromTo(BlockX, BlockY, Agent)).
+		    
+		forall bel(connectionFromTo(X, Y, ToX, ToY, Agent))
+	      do delete(connectionFromTo(X, Y, ToX, ToY, Agent)).
+	}
+}

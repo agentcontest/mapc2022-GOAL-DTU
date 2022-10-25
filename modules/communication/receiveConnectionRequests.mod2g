@@ -1,0 +1,50 @@
+use "../../knowledge_generated" as knowledge.
+
+
+module receiveConnectionRequests {
+	
+	if bel(step(PrevStep), CurrentStep is PrevStep + 1) then {
+		
+		% Receive requests and save them
+		listall Requests <- (_).sent?(connectionRequest(AgentName, AgentCoordinates, CEPs, Step)) do {
+			forall bel(member([AgentName, AgentCoordinates, CEPs, Step], Requests))
+			do insert(connectionRequest(AgentName, AgentCoordinates, CEPs, Step)).
+		}
+		
+		% Check all requests three turns back
+		if bel(CurrentStep > 3, Step is CurrentStep - 3),
+	 	   bel(getAllConnectionRequestsFromStep(Step, ConnectionRequests, Len))
+		then {
+		
+			% We must have messages from ALL agents in the team to ensure uniqueness
+			if bel(teamSize(Len)),
+			   bel(uniqueConnectionRequests(ConnectionRequests, UniqueRequests)) 
+			then {
+
+				% Find all matching environment percepts and the corresponding coordinate systems
+				forall bel(member((AgentName, AgentX, AgentY, Xr, Yr, CEP), UniqueRequests)),
+					   not(bel(name(AgentName))),
+					   bel(matchingEnvironmentPercepts(Xr, Yr, CEP, Step, MyX, MyY)),
+					   bel(X is MyX - Xr - AgentX, Y is MyY - Yr - AgentY),
+					   bel(translateCoordinatesToMyOrigin(X, Y, OffsetXFromMyOrigin, OffsetYFromMyOrigin))
+				do {  
+					if   not(bel(agentOffset(AgentName, _, _))), not(bel(newConnection(AgentName, _, _))) 
+					then insert(newConnection(AgentName, OffsetXFromMyOrigin, OffsetYFromMyOrigin)) + print("new connection: ") + print(AgentName).
+						
+					%%% TODO %%%
+					%if bel(agentOffset(AgentName, OtherOffsetX, OtherOffsetY)),
+					%   bel(findCircumferencesFromOffsets(OffsetXFromMyOrigin, OffsetYFromMyOrigin, OtherOffsetX, OtherOffsetY, L)),
+					%   bel(findBestMapDimensions(L, MapDimensions))
+					%then all.send!(newDimensions(MapDimensions)) +	print(MapDimensions).
+				}
+			}
+			
+			%%%%%%%%% CLEANUP %%%%%%%%%
+			forall bel(connectionRequest(AgentName, AgentCoordinates, CEPs, Step))
+			do  delete(connectionRequest(AgentName, AgentCoordinates, CEPs, Step)).
+			
+			forall bel(savedCommonEnvironmentPercepts(MyPosition, CommonEnvironmentPercepts, Step))
+			do  delete(savedCommonEnvironmentPercepts(MyPosition, CommonEnvironmentPercepts, Step)).
+		}			
+	}		
+}

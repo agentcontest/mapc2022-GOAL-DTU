@@ -1,0 +1,31 @@
+use "../../knowledge_generated" as knowledge.
+
+module dropTask_OtherAgents {
+
+	forall bel(taskPlan(Agent, TaskName, ETA, AgentPlan, BlockType, BlockQty, Connections))
+	do {
+		if true then delete(taskPlan(Agent, TaskName, ETA, AgentPlan, BlockType, BlockQty, Connections)).
+		
+		if bel(taskMaster(TaskMaster)),
+		   bel(taskToChannel(TaskMaster, taskPlan(Agent, TaskName, ETA, AgentPlan, BlockType, BlockQty, Connections), Channel))
+		then unsubscribe(Channel).
+		
+		
+		if true then print("Dropping task: ") + print(TaskName).
+	}
+		
+	forall bel(taskPlanToDo(ToDO))
+		do delete(taskPlanToDo(ToDO)).
+		
+	forall bel(submitAgent(AgentName))
+		do delete(submitAgent(AgentName)).
+		
+	forall bel(blockDelivered(BlockInfo))
+		do delete(blockDelivered(BlockInfo)).
+		
+	forall bel(waypointsToGoal(Goal, Waypoints))
+	do delete(waypointsToGoal(Goal, Waypoints)).
+	
+	forall bel(actionPlan(Plan))
+	do delete(actionPlan(Plan)).
+}

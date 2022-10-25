@@ -1,0 +1,128 @@
+use "../../knowledge_generated" as knowledge.
+use "../percepts/updateMap" as module.
+
+%%% SHARE NEW INFORMATION WITH MY TASK TEAM
+%%% such as newly discovered goalcells, dispensers, etc.
+
+module shareInformation {
+
+	% Receive new map dimensions
+	listall NewDimensions <- (_).sent!(newDimensions(NewDimensions)) do {
+	
+		forall bel(member(Dimensions, NewDimensions)) do {
+		
+			if bel(member(poloidalCircumference(PC), Dimensions)) then {
+								
+				if not(bel(poloidalCircumference(_)))
+				then insert(poloidalCircumference(PC)) + 
+					 updateMap.
+				
+				if bel(poloidalCircumference(OldPC)),
+				   bel(PC \= OldPC)
+				then delete(poloidalCircumference(OldPC)) +
+				     insert(poloidalCircumference(PC)) +
+				     updateMap.
+			}
+		
+			if bel(member(toroidalCircumference(TC), Dimensions)) then {
+								
+				if not(bel(toroidalCircumference(_)))
+				then insert(toroidalCircumference(TC)) + 
+					 updateMap.
+				
+				if bel(toroidalCircumference(OldTC)),
+				   bel(TC \= OldTC)
+				then delete(toroidalCircumference(OldTC)) +
+					     insert(toroidalCircumference(TC)) +
+					     updateMap.
+			}
+		}
+	}
+	
+
+
+	% Receive new connections
+	listall NewConnections <- 
+		(Agent).sent!(newConnections(Connections, (NewDispensers, NewGoalCells, NewRoleCells), TaskMasterList)) 
+	do {	
+	
+		forall bel(member([Connections, NewDispensers, NewGoalCells, NewRoleCells, TaskMasterList, Agent], NewConnections)) do {
+		
+			if bel((agentOffset(Agent, OffsetX, OffsetY)) ; (name(Agent), OffsetX = 0, OffsetY = 0)) then {
+				
+				forall bel(member((ConnectAgent, ConnectOffsetX, ConnectOffsetY), Connections)),
+					   not(bel(name(ConnectAgent))),
+					   not(bel(agentOffset(ConnectAgent, _, _))),
+					   bel(offsetAndTranslateToMyOrigin(OffsetX, OffsetY, ConnectOffsetX, ConnectOffsetY, XFromMyOrigin, YFromMyOrigin))
+				do insert(agentOffset(ConnectAgent, XFromMyOrigin, YFromMyOrigin)). 
+				
+				forall bel(member(dispenser(Xd, Yd, Type), NewDispensers)),
+					   bel(offsetAndTranslateToMyOrigin(OffsetX, OffsetY, Xd, Yd, XFromMyOrigin, YFromMyOrigin)),
+					   not(bel(dispenser(XFromMyOrigin, YFromMyOrigin, Type)))
+				do insert(dispenser(XFromMyOrigin, YFromMyOrigin, Type)). 
+
+				forall bel(member(goalCell(Xgc, Ygc), NewGoalCells)),
+					   bel(offsetAndTranslateToMyOrigin(OffsetX, OffsetY, Xgc, Ygc, XFromMyOrigin, YFromMyOrigin)),
+					   not(bel(goalCell(XFromMyOrigin, YFromMyOrigin)))
+				do insert(goalCell(XFromMyOrigin, YFromMyOrigin)).
+				
+				forall bel(member(roleCell(Xrc, Yrc), NewRoleCells)),
+					   bel(offsetAndTranslateToMyOrigin(OffsetX, OffsetY, Xrc, Yrc, XFromMyOrigin, YFromMyOrigin)),
+					   not(bel(roleCell(XFromMyOrigin, YFromMyOrigin)))
+				do insert(roleCell(XFromMyOrigin, YFromMyOrigin)).
+				
+				if not(bel(taskMaster(_))),
+				   bel(TaskMasterList = [TaskMaster|_])
+			    then {
+					% Insert taskmaster if I do not have it
+					if bel(nameToChannel(TaskMaster, NewChannel)) 
+					then insert(taskMaster(TaskMaster)) + 
+					     subscribe(NewChannel).
+				}
+			}
+		}
+	}
+
+
+
+	% Receive information from team
+	listall SharedInfo <- (Agent).sent(share(Information)) do {
+		forall bel(member([Information, Agent], SharedInfo)),
+			   bel(agentOffset(Agent, OffsetX, OffsetY))
+		do {			
+			if bel(dispenser(Xd, Yd, Type) = Information),
+			   bel(offsetAndTranslateToMyOrigin(OffsetX, OffsetY, Xd, Yd, XFromMyOrigin, YFromMyOrigin)),
+			   not(bel(dispenser(XFromMyOrigin, YFromMyOrigin, Type)))
+			then insert(dispenser(XFromMyOrigin, YFromMyOrigin, Type)). 
+			
+			if bel(goalCell(Xgc, Ygc) = Information),
+			   bel(offsetAndTranslateToMyOrigin(OffsetX, OffsetY, Xgc, Ygc, XFromMyOrigin, YFromMyOrigin)),
+			   not(bel(goalCell(XFromMyOrigin, YFromMyOrigin)))
+			then insert(goalCell(XFromMyOrigin, YFromMyOrigin)).  
+			
+			if bel(roleCell(Xrc, Yrc) = Information),
+			   bel(offsetAndTranslateToMyOrigin(OffsetX, OffsetY, Xrc, Yrc, XFromMyOrigin, YFromMyOrigin)),
+			   not(bel(roleCell(XFromMyOrigin, YFromMyOrigin)))
+			then insert(roleCell(XFromMyOrigin, YFromMyOrigin)).  
+		}
+	}
+	
+	
+	% Share information with team
+	if bel(share(_)) then {
+	
+		% Share newly found beliefs
+		forall bel(share(Information)) do {
+			
+			if bel(taskMaster(TaskMaster), nameToChannel(TaskMaster, Channel)) then (Channel).send(share(Information)).
+			
+			if not(bel(taskMaster(_))) then {
+				forall bel(agentOffset(Agent, _, _)) do (Agent).send(share(Information)).
+			}
+		
+			% It has been shared - remove it
+			if true then delete(share(Information)).
+		}
+	}
+	
+}

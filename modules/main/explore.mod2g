@@ -1,0 +1,87 @@
+use "../../mapcActions" as actionspec.
+use "../../knowledge_generated" as knowledge.
+
+module explore {
+
+	% Find some nice, pretty blocks
+	if goal(fullyEquipped), bel(myRole(MyRole)), bel(canAttach(MyRole)) then {
+		
+		% We have found a block/dispenser
+		if bel(closestBlockOrDispenserInVision(Xr, Yr, _, _)), 
+		not(bel(adjacent(Xr, Yr, Xa, Ya), thing(Xa, Ya, entity, _), Xa \= 0, Ya \= 0)) 
+		then {
+			% If we must rotate, do so if possible, or move in *some* direction
+			if bel(adjacent(0, 0, Xr, Yr), rotationRequiredToAttach(Xr, Yr)) then {
+				if bel(possibleRotationToAttach(Xr, Yr, R)) then rotate(R).
+				if bel(validDirection(D)) then move(D).
+			}			
+			
+			if bel(thing(Xr, Yr, block, _), not(attached(Xr, Yr)), direction(Xr, Yr, Dir))
+				then attach(Dir).
+				
+			if bel(thing(Xr, Yr, dispenser, _), direction(Xr, Yr, Dir))
+				then request(Dir).
+		
+			% We are not next to block nor dispenser, but we have our eyes on the prize
+			if bel(goToAction(Xr, Yr, Action, Params)) 
+			then {
+				if bel(Action = move, [D] = Params) then move(D).
+				if bel(Action = rotate, [R] = Params) then rotate(R).
+				if bel(Action = clear, [Xc, Yc] = Params) then clear(Xc, Yc).
+			}
+		}
+	}
+	
+	% If I see a role zone, change to a new role better suited for exploring!
+	if bel(myRole(MyRole)), not(bel(canAttach(MyRole))), bel(roleZone(_, _)) then {
+	
+		% Change role if we are in a roleZone
+		%% OBS. For now, we hard-code the worker role
+		if bel(roleZone(0, 0)) then adapt(worker).
+	
+		% Go towards the roleZone
+		if bel(nearestRoleCell(Xr, Yr), goToAction(Xr, Yr, Action, Params)) 
+		then {
+			if bel(Action = move, [D] = Params) then move(D).
+			if bel(Action = rotate, [R] = Params) then rotate(R).
+			if bel(Action = clear, [Xc, Yc] = Params) then clear(Xc, Yc).
+		}
+	}
+	
+	
+	% If we have found a taskmaster and some blocks, gravitate towards the goalZones.
+	if bel(taskMaster(_)), not(goal(fullyEquipped))
+	then {
+		
+		% Get out of the way
+		% if bel(approachingTeamMate(Xr, Yr, Direction))
+		% then {
+		% 	% Void
+		% }
+	
+		% Get in the way
+		% if bel(approachingEnemy(Xr, Yr, Direction))
+	    % then {
+		% 	% Void
+		% }
+		
+		% Stay near goalZone
+		if bel(exploreGoalZonesAction(Action, Params)) then {
+			if bel(Action = move, [D] = Params) then move(D).
+			if bel(Action = rotate, [R] = Params) then rotate(R).
+			if bel(Action = clear, [Xc, Yc] = Params) then clear(Xc, Yc).
+		}
+	}
+	
+	%%% .. Otherwise, keep on exploring.
+	if bel(exploreAction(Action, Params)) then {
+		if bel(Action = move, [D] = Params) then move(D).
+		if bel(Action = rotate, [R] = Params) then rotate(R).
+		if bel(Action = clear, [Xc, Yc] = Params) then clear(Xc, Yc).
+	}
+	
+	% TODO
+	% I'm stuck!
+	% This only happens if I have two attachments - detach one of them
+	% ...
+}

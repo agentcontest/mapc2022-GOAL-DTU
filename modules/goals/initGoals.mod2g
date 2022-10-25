@@ -1,0 +1,11 @@
+use "../../knowledge_generated" as knowledge.
+
+module initGoals {
+
+	% Set the default / fallback goal to explore the map.
+	if true then adopt(explore)
+				 + adopt(fullyEquipped)
+				 + adopt(fullyConnected) 
+				 + adopt(findMapDimensions).
+
+}

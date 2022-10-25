@@ -1,0 +1,24 @@
+use "../../knowledge_generated" as knowledge.
+
+
+module updateGoals {
+	%%% DROP GOALS %%%
+	if a-goal(fullyEquipped), not(bel(availableAttachmentSpot(_, _))) then drop(fullyEquipped).
+	
+	if a-goal(fullyConnected) then {
+		if bel(findall(Agent, agentOffset(Agent, _, _), Connections)), 
+		   bel(length(Connections, L), L1 is L + 1, teamSize(L1)) 
+			then drop(fullyConnected) + print("FULLY CONNECTED!").
+	}
+	
+	if a-goal(findMapDimensions),
+	   bel(poloidalCircumference(_)), 
+	   bel(toroidalCircumference(_))
+	then drop(findMapDimensions) + print("Found Dimensions").
+
+
+	%%% ADOPT GOALS %%%
+	if goal(explore) then {
+		if not(goal(fullyEquipped)), bel(availableAttachmentSpot(_, _)) then adopt(fullyEquipped).
+	}
+}

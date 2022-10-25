@@ -1,0 +1,33 @@
+use "knowledge_generated" as knowledge.
+use "modules/main/explore".
+use "modules/main/solveTask".
+use mapcActions.
+
+exit=never.
+
+module mapcMain {
+	% Always skip the first turn - also after restarting.
+	if percept(step(0)) then skip + print("Skipped step 0").
+	if percept(step(1)) then skip + print("Skipped step 1").
+	if percept(step(2)) then skip + print("Skipped step 2").
+	
+	if bel(restart) then skip + print("Skipped the restart").
+	
+	% The taskmaster is always busy planning.
+	if bel(name(MyName)),
+	   bel(taskMaster(MyName))
+	then skip.
+	
+	% We have a task to solve!
+	if bel(taskPlan(_, _, _, _, _, _, _)) then solveTask.
+	
+	% Remove old conncetions
+	if bel(furthestConnectionFromTo(X1, Y1, X2, Y2))
+	then disconnect(X1, Y1, X2, Y2).
+		
+	% Otherwise, explore
+	if goal(explore) then explore.
+	
+	% Skip - avoid no_action
+	if true then skip.
+}
